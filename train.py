@@ -1,4 +1,3 @@
-import argparse
 import os
 import shutil
 import time
@@ -9,68 +8,50 @@ import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
+import torchvision
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import resnet
+from lbfgsnew import LBFGSNew
+from config import parser
 
-model_names = sorted(name for name in resnet.__dict__
-    if name.islower() and not name.startswith("__")
-                     and name.startswith("resnet")
-                     and callable(resnet.__dict__[name]))
 
-print(model_names)
+lambda1=0.000001
+lambda2=0.001
 
-parser = argparse.ArgumentParser(description='Propert ResNets for CIFAR10 in pytorch')
-parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet32',
-                    choices=model_names,
-                    help='model architecture: ' + ' | '.join(model_names) +
-                    ' (default: resnet32)')
-parser.add_argument('-t', '--trainable', default='all', type='str',
-                    help='which layers are trainable: all for all, bn for batch normalization, freeze for none')
-parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
-                    help='number of data loading workers (default: 4)')
-parser.add_argument('--epochs', default=200, type=int, metavar='N',
-                    help='number of total epochs to run')
-parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
-                    help='manual epoch number (useful on restarts)')
-parser.add_argument('-b', '--batch-size', default=128, type=int,
-                    metavar='N', help='mini-batch size (default: 128)')
-parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
-                    metavar='LR', help='initial learning rate')
-parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
-                    help='momentum')
-parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
-                    metavar='W', help='weight decay (default: 1e-4)')
-parser.add_argument('--print-freq', '-p', default=50, type=int,
-                    metavar='N', help='print frequency (default: 50)')
-parser.add_argument('--resume', default='', type=str, metavar='PATH',
-                    help='path to latest checkpoint (default: none)')
-parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
-                    help='evaluate model on validation set')
-parser.add_argument('--pretrained', dest='pretrained', action='store_true',
-                    help='use pre-trained model')
-parser.add_argument('--half', dest='half', action='store_true',
-                    help='use half-precision(16-bit) ')
-parser.add_argument('--save-dir', dest='save_dir',
-                    help='The directory used to save the trained models',
-                    default='save_temp', type=str)
-parser.add_argument('--save-every', dest='save_every',
-                    help='Saves checkpoints at every specified number of epochs',
-                    type=int, default=10)
-best_prec1 = 0
-
+args = parser.parse_args()
+global best_prec1
 
 def main():
-    global args, best_prec1
-    args = parser.parse_args()
+    best_prec1 = 0
 
 
     # Check the save_dir exists or not
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
-
-    model = torch.nn.DataParallel(resnet.__dict__[args.arch]())
+    if args.wide_resnet:
+        # use wide residual net https://arxiv.org/abs/1605.07146
+        model = torchvision.models.resnet.wide_resnet50_2()
+    else:
+        model = torch.nn.DataParallel(resnet.__dict__[args.arch]())
     model.cuda()
+
+    if args.use_lbfgs:
+        optimizer = LBFGSNew(model.parameters(), history_size=7, max_iter=2, line_search_fn=True,batch_mode=True)
+
+    else:
+        optimizer = torch.optim.SGD(model.parameters(), args.lr,
+                                    momentum=args.momentum,
+                                    weight_decay=args.weight_decay)
+        if args.arch in ['resnet1202', 'resnet110']:
+            # for resnet1202 original paper uses lr=0.01 for first 400 minibatches for warm-up
+            # then switch back. In this setup it will correspond for first epoch.
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = args.lr * 0.1
+
+
+    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,
+                                                        milestones=[100, 150], last_epoch=args.start_epoch - 1)
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -116,19 +97,6 @@ def main():
     if args.half:
         model.half()
         criterion.half()
-
-    optimizer = torch.optim.SGD(model.parameters(), args.lr,
-                                momentum=args.momentum,
-                                weight_decay=args.weight_decay)
-
-    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,
-                                                        milestones=[100, 150], last_epoch=args.start_epoch - 1)
-
-    if args.arch in ['resnet1202', 'resnet110']:
-        # for resnet1202 original paper uses lr=0.01 for first 400 minibatches for warm-up
-        # then switch back. In this setup it will correspond for first epoch.
-        for param_group in optimizer.param_groups:
-            param_group['lr'] = args.lr*0.1
 
     if args.evaluate:
         validate(val_loader, model, criterion)
@@ -185,14 +153,43 @@ def train(train_loader, model, criterion, optimizer, epoch):
         if args.half:
             input_var = input_var.half()
 
-        # compute output
-        output = model(input_var)
-        loss = criterion(output, target_var)
+        if not args.use_lbfgs:
+            # zero gradients
+            optimizer.zero_grad()
+            # forward+backward optimize
+            output = model(input_var)
+            loss = criterion(output, target_var)
+            loss.backward()
+            optimizer.step()
+        else:
+            if not args.wide_resnet:
+                layer1 = torch.cat([x.view(-1) for x in model.layer1.parameters()])
+                layer2 = torch.cat([x.view(-1) for x in model.layer2.parameters()])
+                layer3 = torch.cat([x.view(-1) for x in model.layer3.parameters()])
+                layer4 = torch.cat([x.view(-1) for x in model.layer4.parameters()])
 
-        # compute gradient and do SGD step
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+            def closure():
+                if torch.is_grad_enabled():
+                    optimizer.zero_grad()
+                output = model(input_var)
+                if not args.wide_resnet:
+                    l1_penalty = lambda1 * (
+                                torch.norm(layer1, 1) + torch.norm(layer2, 1) + torch.norm(layer3, 1) + torch.norm(
+                            layer4, 1))
+                    l2_penalty = lambda2 * (
+                                torch.norm(layer1, 2) + torch.norm(layer2, 2) + torch.norm(layer3, 2) + torch.norm(
+                            layer4, 2))
+                    loss = criterion(output, target_var) + l1_penalty + l2_penalty
+                else:
+                    l1_penalty = 0
+                    l2_penalty = 0
+                    loss = criterion(output, target_var)
+                if loss.requires_grad:
+                    loss.backward()
+                    # print('loss %f l1 %f l2 %f'%(loss,l1_penalty,l2_penalty))
+                return loss
+
+            optimizer.step(closure)
 
         output = output.float()
         loss = loss.float()

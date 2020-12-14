@@ -93,6 +93,14 @@ class BatchNorm(nn.Module):
         return Y
 
 
+'''ResNet in PyTorch.
+Reference:
+[1] Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
+    Deep Residual Learning for Image Recognition. arXiv:1512.03385
+
+From: https://github.com/kuangliu/pytorch-cifar
+'''
+
 def _weights_init(m):
     classname = m.__class__.__name__
     #print(classname)
