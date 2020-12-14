@@ -117,7 +117,7 @@ def main():
         criterion.half()
 
     if args.evaluate:
-        validate(val_loader, model, criterion)
+        validate(val_loader, model, criterion, logfile)
         return
 
     for epoch in range(args.start_epoch, args.epochs):
@@ -145,6 +145,7 @@ def main():
             'state_dict': model.state_dict(),
             'best_prec1': best_prec1,
         }, is_best, filename=os.path.join(args.save_dir, 'model.th'))
+    logfile.close()
 
 
 def train(train_loader, model, criterion, optimizer, epoch, logfile):
