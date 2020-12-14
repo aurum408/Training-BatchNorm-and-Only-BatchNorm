@@ -1,7 +1,9 @@
 import os
 import shutil
 import time
+from datetime import date
 
+import json
 import torch
 import torch.nn as nn
 import torch.nn.parallel
@@ -29,6 +31,22 @@ def main():
     # Check the save_dir exists or not
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
+
+    if args.use_lbfgs:
+        opt = "LBFGS"
+    else:
+        opt = "SGD"
+
+    if args.wide_resnet:
+        wide = "wide"
+    else:
+        wide = ""
+
+    datetime = date.today().strftime("%b-%d-%Y")
+
+    exp_name = "{}{}{}_{}".format(args.arch, wide, opt, datetime)
+    logfile = open("{}.txt".format(exp_name), "a")
+
     if args.wide_resnet:
         # use wide residual net https://arxiv.org/abs/1605.07146
         model = torchvision.models.resnet.wide_resnet50_2()
@@ -106,11 +124,11 @@ def main():
 
         # train for one epoch
         print('current lr {:.5e}'.format(optimizer.param_groups[0]['lr']))
-        train(train_loader, model, criterion, optimizer, epoch)
+        train(train_loader, model, criterion, optimizer, epoch, logfile)
         lr_scheduler.step()
 
         # evaluate on validation set
-        prec1 = validate(val_loader, model, criterion)
+        prec1 = validate(val_loader, model, criterion, logfile)
 
         # remember best prec@1 and save checkpoint
         is_best = prec1 > best_prec1
@@ -129,7 +147,7 @@ def main():
         }, is_best, filename=os.path.join(args.save_dir, 'model.th'))
 
 
-def train(train_loader, model, criterion, optimizer, epoch):
+def train(train_loader, model, criterion, optimizer, epoch, logfile):
     """
         Run one train epoch
     """
@@ -207,12 +225,12 @@ def train(train_loader, model, criterion, optimizer, epoch):
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
+                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\n'.format(
                       epoch, i, len(train_loader), batch_time=batch_time,
-                      data_time=data_time, loss=losses, top1=top1))
+                      data_time=data_time, loss=losses, top1=top1), file=logfile)
 
 
-def validate(val_loader, model, criterion):
+def validate(val_loader, model, criterion, logfile):
     """
     Run evaluation
     """
@@ -253,9 +271,9 @@ def validate(val_loader, model, criterion):
                 print('Test: [{0}/{1}]\t'
                       'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                       'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                      'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
+                      'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\n'.format(
                           i, len(val_loader), batch_time=batch_time, loss=losses,
-                          top1=top1))
+                          top1=top1), file=logfile)
 
     print(' * Prec@1 {top1.avg:.3f}'
           .format(top1=top1))
