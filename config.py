@@ -18,7 +18,7 @@ parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--use_lbfgs', default=False, type=bool, help='use lbfgs or sgd optimizer')
 parser.add_argument('-w', '--wide_resnet', default=False, type=bool, help='wide resnet')
-parser.add_argument('--epochs', default=200, type=int, metavar='N',
+parser.add_argument('--epochs', default=75, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
