@@ -14,6 +14,7 @@ import torchvision
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import resnet
+from resnet import freeze_model, unfreeze_model, test
 from lbfgsnew import LBFGSNew
 from config import parser
 
@@ -32,6 +33,10 @@ def main():
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
+    trainable = args.trainable
+    if trainable == "none":
+        trainable = "freeze"
+
     if args.use_lbfgs:
         opt = "LBFGS"
     else:
@@ -44,14 +49,22 @@ def main():
 
     datetime = date.today().strftime("%b-%d-%Y")
 
-    exp_name = "{}{}{}_{}".format(args.arch, wide, opt, datetime)
-    logfile = open("{}.txt".format(exp_name), "a")
+    exp_name = "{}{}{}{}_{}".format(args.arch, wide, opt, trainable, datetime)
+    logfile = open(os.path.join(args.save_dir, "{}.txt".format(exp_name)), "a")
 
     if args.wide_resnet:
         # use wide residual net https://arxiv.org/abs/1605.07146
         model = torchvision.models.resnet.wide_resnet50_2()
     else:
-        model = torch.nn.DataParallel(resnet.__dict__[args.arch]())
+        model = resnet.__dict__[args.arch]()
+    if trainable == "freeze":
+        freeze_model(model)
+    elif trainable == "bn":
+        freeze_model(model)
+        unfreeze_model(model, ["gamma", "beta"])
+
+    print(test(model), file=logfile)
+
     model.cuda()
 
     if args.use_lbfgs:

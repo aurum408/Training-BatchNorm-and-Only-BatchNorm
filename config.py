@@ -13,7 +13,7 @@ parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet32',
                     help='model architecture: ' + ' | '.join(model_names) +
                     ' (default: resnet32)')
 parser.add_argument('-t', '--trainable', default='all', type=str,
-                    help='which layers are trainable: all for all, bn for batch normalization, freeze for none')
+                    help='which layers are trainable: all for all, bn for batch normalization, none for none')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--use_lbfgs', default=False, type=bool, help='use lbfgs or sgd optimizer')

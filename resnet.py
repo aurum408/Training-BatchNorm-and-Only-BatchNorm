@@ -3,7 +3,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import torch.nn.init as init
-
+import numpy as np
 
 __all__ = ['ResNet', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110', 'resnet1202']
 
@@ -223,14 +223,13 @@ def unfreeze_model(model: nn.Module, param_names: Union[List[str], None] = None)
             param.requires_grad = True
 
 
-def test(net):
-    import numpy as np
+def test(net: nn.Module) -> str:
     total_params = 0
 
     for x in filter(lambda p: p.requires_grad, net.parameters()):
         total_params += np.prod(x.data.numpy().shape)
-    print("Total number of params", total_params)
-    print("Total layers", len(list(filter(lambda p: p.requires_grad and len(p.data.size()) > 1, net.parameters()))))
+
+    return "Total number of params {}".format(total_params)
 
 
 if __name__ == "__main__":
