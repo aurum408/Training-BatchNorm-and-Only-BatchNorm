@@ -198,7 +198,7 @@ def train(train_loader, model, criterion, optimizer, epoch, logfile):
                 layer1 = torch.cat([x.view(-1) for x in model.layer1.parameters()])
                 layer2 = torch.cat([x.view(-1) for x in model.layer2.parameters()])
                 layer3 = torch.cat([x.view(-1) for x in model.layer3.parameters()])
-                layer4 = torch.cat([x.view(-1) for x in model.layer4.parameters()])
+                # layer4 = torch.cat([x.view(-1) for x in model.layer4.parameters()])
 
             def closure():
                 if torch.is_grad_enabled():
@@ -206,11 +206,9 @@ def train(train_loader, model, criterion, optimizer, epoch, logfile):
                 output = model(input_var)
                 if not args.wide_resnet:
                     l1_penalty = lambda1 * (
-                                torch.norm(layer1, 1) + torch.norm(layer2, 1) + torch.norm(layer3, 1) + torch.norm(
-                            layer4, 1))
+                                torch.norm(layer1, 1) + torch.norm(layer2, 1) + torch.norm(layer3, 1))
                     l2_penalty = lambda2 * (
-                                torch.norm(layer1, 2) + torch.norm(layer2, 2) + torch.norm(layer3, 2) + torch.norm(
-                            layer4, 2))
+                                torch.norm(layer1, 2) + torch.norm(layer2, 2) + torch.norm(layer3, 2))
                     loss = criterion(output, target_var) + l1_penalty + l2_penalty
                 else:
                     l1_penalty = 0

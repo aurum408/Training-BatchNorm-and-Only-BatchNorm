@@ -236,16 +236,18 @@ if __name__ == "__main__":
 
     #https://github.com/akamaster/pytorch_resnet_cifar10/blob/master/resnet.py
 
-    net = resnet20()
-    freeze_model(net)
-    test(net)
-
-    unfreeze_model(net)
-    test(net)
+    net = resnet32()
+    print(test(net))
 
     freeze_model(net)
+    print(test(net))
+    #
+    # unfreeze_model(net)
+    # test(net)
+    #
+    # freeze_model(net)
     unfreeze_model(net, param_names=["gamma", "beta"])
-    test(net)
+    print(test(net))
     # for name, param in net.named_parameters():
     #     print(name)
     #
