@@ -245,15 +245,7 @@ def train(train_loader, model, criterion, optimizer, epoch, logfile):
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
                       epoch, i, len(train_loader), batch_time=batch_time,
-                      data_time=data_time, loss=losses, top1=top1))
-
-    print('Epoch: {0}\t'
-          'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-          'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-          'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-          'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
-        epoch,batch_time=batch_time,
-        data_time=data_time, loss=losses, top1=top1), file=logfile)
+                      data_time=data_time, loss=losses, top1=top1), file=logfile)
 
 
 def validate(val_loader, model, criterion, logfile):
@@ -299,12 +291,10 @@ def validate(val_loader, model, criterion, logfile):
                       'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                       'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
                           i, len(val_loader), batch_time=batch_time, loss=losses,
-                          top1=top1))
+                          top1=top1), file=logfile)
 
-    print('Test Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-          'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-          'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(batch_time=batch_time, loss=losses,
-        top1=top1), file=logfile)
+    print(' * Prec@1 {top1.avg:.3f}'
+          .format(top1=top1))
 
     return top1.avg
 
