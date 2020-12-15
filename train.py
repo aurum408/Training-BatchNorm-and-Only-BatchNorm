@@ -3,6 +3,7 @@ import shutil
 import time
 from datetime import date
 
+import math
 import json
 import torch
 import torch.nn as nn
@@ -220,7 +221,12 @@ def train(train_loader, model, criterion, optimizer, epoch, logfile):
                 return loss
 
             optimizer.step(closure)
+        output = model(input_var)
+        loss = criterion(output, target_var)
 
+        if math.isnan(loss.data.item()):
+            print('loss became nan at %d' % i)
+            break
         output = output.float()
         loss = loss.float()
         # measure accuracy and record loss
