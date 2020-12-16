@@ -95,7 +95,7 @@ def plot(configs: list, xlabel: str, ylabel: str,
     # plt.figure()
     plt.title(title)
     box = ax.get_position()
-    ax.set_position([box.x0, box.y0, box.width * 0.7, box.height])
+    # ax.set_position([box.x0, box.y0, box.width * 0.7, box.height])
     for cfg in configs:
         _plot(*cfg)
     plt.legend(bbox_to_anchor=(1.05, 1), loc=legend)
@@ -156,6 +156,12 @@ if __name__ == '__main__':
           [LBFGSall["val_acc"][1:], "LBFGS_all", "y"]],
          "epoch", "accuracy", "val_acc", "best", "val_acc")
 
+    plot([[SGDbn["val_loss"][1:], "SGD_bn", "r"],
+          [LBFGSbn["val_loss"][1:], "LBFGS_bn", "g"]],
+         "epoch", "val loss", "SGD vs LBFGS", "best", "SGD_vs_LBFGS_loss")
 
+    plot([[SGDbn["val_acc"][1:], "SGD_bn", "r"],
+          [LBFGSbn["val_acc"][1:], "LBFGS_bn", "g"]],
+         "epoch", "val accuracy", "SGD vs LBFGS", "lower right", "SGD_vs_LBFGS_acc")
 
     print("ok")
